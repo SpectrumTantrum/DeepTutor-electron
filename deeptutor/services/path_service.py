@@ -78,6 +78,11 @@ class PathService:
         return cls._instance
 
     def __init__(self):
+        """
+        Initialize PathService on first construction.
+        
+        Sets the object’s project root, determines the user data directory using the DEEPTUTOR_DATA_DIR environment variable if present (otherwise uses the repository's data/user directory), and marks the instance as initialized to prevent repeated initialization.
+        """
         if self._initialized:
             return
 
@@ -231,9 +236,23 @@ class PathService:
         return self.get_notebook_dir() / f"{notebook_id}.json"
 
     def get_notebook_index_file(self) -> Path:
+        """
+        Get the path to the notebook index file.
+        
+        Returns:
+            Path: Path to the notebook index JSON file ('notebooks_index.json') located in the notebook directory.
+        """
         return self.get_notebook_dir() / "notebooks_index.json"
 
     def get_memory_dir(self) -> Path:
+        """
+        Get the runtime memory directory used for storing user memory files.
+        
+        If the DEEPTUTOR_DATA_DIR environment variable is set, the memory directory is resolved as the sibling "memory" directory of that path's parent; otherwise it falls back to <project_root>/data/memory. If an older workspace memory directory exists, Markdown files (*.md) from that directory are copied into the resolved memory directory when they do not already exist there.
+        
+        Returns:
+            memory_dir (Path): Resolved path to the memory directory.
+        """
         env_dir = os.environ.get("DEEPTUTOR_DATA_DIR")
         if env_dir:
             new_dir = Path(env_dir).resolve().parent / "memory"

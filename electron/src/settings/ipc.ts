@@ -12,6 +12,11 @@ import {
 
 const log = getLogger("main");
 
+/**
+ * Registers IPC handlers for settings retrieval and saving, secret management, and requesting a sidecar restart.
+ *
+ * @param manager - Sidecar manager used to perform the shutdown when a restart is requested
+ */
 export function registerSettingsIpc(manager: SidecarManager): void {
   ipcMain.handle("settings:get", () => {
     const settings = loadSettings();

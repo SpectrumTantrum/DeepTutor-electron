@@ -27,6 +27,13 @@ const DEFAULT_FORM: FormState = {
   AUTO_UPDATE_ENABLED: false,
 }
 
+/**
+ * Render the DeepTutor settings UI and handle loading, editing, and persisting application settings through the Electron bridge.
+ *
+ * If the Electron bridge is unavailable (e.g., in a browser build), renders a fallback message indicating settings are inaccessible.
+ *
+ * @returns A React element that displays the settings page and related controls (save, restart, secret inputs, toggles).
+ */
 export default function ElectronSettingsPage() {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM)
   const [secretStatus, setSecretStatus] = useState<Record<string, boolean>>({})
@@ -204,6 +211,13 @@ export default function ElectronSettingsPage() {
   )
 }
 
+/**
+ * Render a titled, styled section wrapper.
+ *
+ * @param title - The text displayed as the section heading.
+ * @param children - Content rendered inside the section's styled container.
+ * @returns A section element containing a heading and a styled content container that wraps `children`.
+ */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginTop: 16, marginBottom: 16 }}>
@@ -222,6 +236,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+/**
+ * Renders a labeled single-line text input bound to the provided value.
+ *
+ * @param label - Text displayed above the input as its label
+ * @param value - Current value shown in the input
+ * @param onChange - Callback invoked with the new value when the input changes
+ * @param placeholder - Optional hint text shown when the input is empty
+ * @returns A JSX element containing a labeled text input
+ */
 function Field({
   label,
   value,
@@ -247,6 +270,16 @@ function Field({
   )
 }
 
+/**
+ * Renders a labeled checkbox toggle.
+ *
+ * The checkbox reflects `value` and invokes `onChange` with the new checked state when toggled.
+ *
+ * @param label - Text displayed next to the checkbox
+ * @param value - Whether the checkbox is currently checked
+ * @param onChange - Callback invoked with the updated checked state
+ * @returns A JSX element containing the labeled checkbox
+ */
 function Toggle({
   label,
   value,

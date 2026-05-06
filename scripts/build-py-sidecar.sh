@@ -19,6 +19,7 @@ DIST="${ROOT}/dist/py-sidecar"
 BUILD_ARM64="${ROOT}/build/py-arm64"
 BUILD_X64="${ROOT}/build/py-x64"
 
+# build_arch builds the PyInstaller bundle for a given architecture into the specified output directory using the provided virtual environment path.
 build_arch() {
   local arch="$1"
   local venv_dir="$2"

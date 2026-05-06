@@ -206,10 +206,20 @@ export class SidecarManager extends EventEmitter {
 
 let managerSingleton: SidecarManager | null = null;
 
+/**
+ * Access the current global SidecarManager instance, if one has been set.
+ *
+ * @returns The current SidecarManager instance, or `null` if no manager is configured.
+ */
 export function getSidecarManager(): SidecarManager | null {
   return managerSingleton;
 }
 
+/**
+ * Set the global SidecarManager instance used by the application.
+ *
+ * @param m - The SidecarManager to register as the module-level singleton
+ */
 export function setSidecarManager(m: SidecarManager): void {
   managerSingleton = m;
 }
