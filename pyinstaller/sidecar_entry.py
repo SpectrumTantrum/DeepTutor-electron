@@ -16,11 +16,26 @@ import sys
 
 
 def _ensure_event_loop_policy() -> None:
+    """
+    Set the asyncio event loop policy to WindowsProactorEventLoopPolicy when running on Windows.
+    
+    Does nothing on non-Windows platforms.
+    """
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
 def _resolve_port() -> int:
+    """
+    Resolve BACKEND_PORT from the environment, validate it, and return it.
+    
+    Raises:
+        SystemExit: If BACKEND_PORT is missing, cannot be parsed as an integer,
+                    or is not within the range 1 through 65535.
+    
+    Returns:
+        int: The validated port number (1 through 65535).
+    """
     raw = os.environ.get("BACKEND_PORT", "").strip()
     if not raw:
         raise SystemExit(
@@ -36,6 +51,17 @@ def _resolve_port() -> int:
 
 
 def _ensure_data_dir() -> str:
+    """
+    Ensure the DEEPTUTOR_DATA_DIR environment variable is set and that the directory exists.
+    
+    Reads DEEPTUTOR_DATA_DIR from the environment, creates the directory if it does not exist, and returns the directory path.
+    
+    Returns:
+        data_dir (str): The path from DEEPTUTOR_DATA_DIR.
+    
+    Raises:
+        SystemExit: If DEEPTUTOR_DATA_DIR is not set or is empty.
+    """
     data_dir = os.environ.get("DEEPTUTOR_DATA_DIR", "").strip()
     if not data_dir:
         raise SystemExit(
@@ -46,6 +72,11 @@ def _ensure_data_dir() -> str:
 
 
 def main() -> None:
+    """
+    Launch the DeepTutor backend sidecar using uvicorn after validating environment and configuring runtime.
+    
+    Performs environment-driven startup: ensures the appropriate asyncio event loop policy on Windows, sets PYTHONUNBUFFERED and line-buffering for standard streams when supported, validates and reads BACKEND_PORT and DEEPTUTOR_DATA_DIR, sets the runtime mode to SERVER, configures logging, and starts uvicorn serving "deeptutor.api.main:app" bound to 127.0.0.1 on the validated port with automatic reload disabled.
+    """
     _ensure_event_loop_policy()
 
     os.environ["PYTHONUNBUFFERED"] = "1"

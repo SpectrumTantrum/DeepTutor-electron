@@ -12,6 +12,15 @@ export interface NodeSpawnResult {
   readonly port: number;
 }
 
+/**
+ * Resolve the filesystem path to the web sidecar's standalone server.js.
+ *
+ * When the app is packaged, returns the file under the app's resources (resourcesPath/web/server.js).
+ * If the DEEPTUTOR_DEV_WEB_SERVER environment variable points to an existing file, that path is returned.
+ * Otherwise returns the development standalone server path inside the repository (web/.next/standalone/server.js).
+ *
+ * @returns The absolute filesystem path to the web sidecar's `server.js`.
+ */
 export function webStandalonePath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "web", "server.js");
@@ -22,6 +31,14 @@ export function webStandalonePath(): string {
   return path.join(repoRoot, "web", ".next", "standalone", "server.js");
 }
 
+/**
+ * Spawns the Node.js web sidecar on an available port and returns the child process and port.
+ *
+ * @param backendPort - Port of the local backend API that will be exposed to the sidecar via NEXT_PUBLIC_API_BASE
+ * @param appVersion - Application version to propagate into the sidecar environment (APP_VERSION / NEXT_PUBLIC_APP_VERSION)
+ * @returns An object containing the spawned ChildProcess (`child`) and the allocated port (`port`)
+ * @throws If the sidecar server script cannot be found at the resolved path
+ */
 export async function spawnNodeSidecar(
   backendPort: number,
   appVersion: string,
@@ -68,6 +85,16 @@ export async function spawnNodeSidecar(
   return { child, port };
 }
 
+/**
+ * Waits until the Node.js sidecar responds on the specified port or the wait times out.
+ *
+ * @param port - TCP port where the sidecar is expected to listen
+ * @param timeoutMs - Maximum time in milliseconds to wait for readiness (default: 15000)
+ * @param signal - Optional AbortSignal to cancel waiting early
+ * @returns Resolves when the sidecar returns an HTTP status in the range 200–499
+ * @throws Error when `signal` is aborted (throws "node readiness aborted")
+ * @throws Error if the sidecar does not become ready within `timeoutMs` (throws a timeout error)
+ */
 export async function waitForNodeReady(
   port: number,
   timeoutMs = 15_000,

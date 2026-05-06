@@ -13,6 +13,11 @@ export interface PythonSpawnResult {
   readonly dataDir: string;
 }
 
+/**
+ * Resolve the filesystem path to the Python sidecar binary.
+ *
+ * @returns The absolute path to the Python sidecar executable. When the app is packaged, this is the binary under the app resources; when not packaged, this prefers the `DEEPTUTOR_DEV_PY_BIN` environment variable if it points to an existing file, otherwise falls back to the repository `dist/py-sidecar/deeptutor-server` path.
+ */
 export function pythonSidecarBinaryPath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "py-sidecar", "deeptutor-server");
@@ -23,6 +28,16 @@ export function pythonSidecarBinaryPath(): string {
   return path.join(repoRoot, "dist", "py-sidecar", "deeptutor-server");
 }
 
+/**
+ * Spawn the Python sidecar process and prepare its runtime environment.
+ *
+ * Creates the data directory if missing, allocates a free port, launches the sidecar
+ * binary with the current environment merged with `baseEnv`, and pipes the sidecar's
+ * stdout/stderr to the logger.
+ *
+ * @param baseEnv - Additional environment variables to apply to the sidecar process
+ * @returns An object containing the spawned child process (`child`), the allocated port number (`port`), and the data directory path (`dataDir`)
+ */
 export async function spawnPythonSidecar(
   baseEnv: Readonly<Record<string, string>>,
 ): Promise<PythonSpawnResult> {
@@ -66,6 +81,16 @@ export async function spawnPythonSidecar(
   return { child, port, dataDir };
 }
 
+/**
+ * Waits until the Python sidecar responds successfully at its runtime-topology HTTP endpoint or until the timeout elapses.
+ *
+ * @param port - TCP port the sidecar is expected to listen on
+ * @param timeoutMs - Maximum time to wait in milliseconds (default 30000)
+ * @param signal - Optional AbortSignal to cancel waiting; if aborted, the function throws immediately
+ *
+ * @throws Error when the provided `signal` is aborted
+ * @throws Error if the sidecar does not respond with an OK status before the timeout
+ */
 export async function waitForPythonReady(
   port: number,
   timeoutMs = 30_000,

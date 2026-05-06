@@ -25,12 +25,22 @@ declare global {
   }
 }
 
+/**
+ * Obtain the renderer-side Electron preload bridge when running inside Electron.
+ *
+ * @returns The `ElectronBridge` instance when available and verified (`isElectron === true`), otherwise `null`.
+ */
 export function getElectronBridge(): ElectronBridge | null {
   if (typeof window === 'undefined') return null
   const bridge = window.deeptutor
   return bridge && bridge.isElectron === true ? bridge : null
 }
 
+/**
+ * Detects whether the renderer is running inside an Electron environment.
+ *
+ * @returns `true` if an Electron preload bridge is available, `false` otherwise.
+ */
 export function isElectron(): boolean {
   return getElectronBridge() !== null
 }

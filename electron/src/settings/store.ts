@@ -40,14 +40,31 @@ export type SecretKey = (typeof SECRET_KEYS)[number];
 const SecretsSchema = z.record(z.string(), z.string());
 type Secrets = z.infer<typeof SecretsSchema>;
 
+/**
+ * Get the file system path to the application's settings JSON file.
+ *
+ * @returns Absolute path to `settings.json` located in the user's app data directory
+ */
 function settingsPath(): string {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+/**
+ * Get the filesystem path for the encrypted secrets file in the application's user data directory.
+ *
+ * @returns Absolute path to `secrets.bin` inside the Electron `userData` directory.
+ */
 function secretsPath(): string {
   return path.join(app.getPath("userData"), "secrets.bin");
 }
 
+/**
+ * Load application settings from the persistent settings file and validate them.
+ *
+ * If the settings file is missing or its contents cannot be parsed/validated, returns the default settings.
+ *
+ * @returns The validated Settings object loaded from disk, or the default Settings when missing or invalid.
+ */
 export function loadSettings(): Settings {
   const file = settingsPath();
   if (!fs.existsSync(file)) return SettingsSchema.parse({});
@@ -59,6 +76,12 @@ export function loadSettings(): Settings {
   }
 }
 
+/**
+ * Persist updated settings by merging the provided partial values with the existing settings and enforcing the current settings version.
+ *
+ * @param next - Partial settings to merge into the existing settings
+ * @returns The merged `Settings` object, validated against the schema and written to disk
+ */
 export function saveSettings(next: Partial<Settings>): Settings {
   const current = loadSettings();
   const merged = SettingsSchema.parse({ ...current, ...next, version: SETTINGS_VERSION });
@@ -66,6 +89,14 @@ export function saveSettings(next: Partial<Settings>): Settings {
   return merged;
 }
 
+/**
+ * Load and decrypt stored secrets from the application's secrets file.
+ *
+ * If the secrets file does not exist, Electron's safeStorage encryption is not available,
+ * or any read/decrypt/parse error occurs, an empty object is returned.
+ *
+ * @returns A record mapping secret keys to their string values; an empty object if no secrets are available or on error.
+ */
 function loadSecrets(): Secrets {
   const file = secretsPath();
   if (!fs.existsSync(file)) return {};
@@ -79,6 +110,15 @@ function loadSecrets(): Secrets {
   }
 }
 
+/**
+ * Encrypts the provided secrets and writes them to the persistent secrets file.
+ *
+ * Encrypts `secrets` with Electron's `safeStorage` and writes the resulting ciphertext
+ * to the path returned by `secretsPath()`.
+ *
+ * @param secrets - A record mapping secret keys to their string values
+ * @throws Error if safeStorage encryption is not available on the current platform
+ */
 function persistSecrets(secrets: Secrets): void {
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error("safeStorage encryption is not available on this platform");
@@ -87,6 +127,13 @@ function persistSecrets(secrets: Secrets): void {
   fs.writeFileSync(secretsPath(), ciphertext);
 }
 
+/**
+ * Store or remove a named secret in the encrypted secrets store.
+ *
+ * @param key - The secret name (one of the defined secret keys, e.g., API key identifiers)
+ * @param value - The secret value to store; if an empty string, the secret is removed
+ * @throws Error if encrypted secure storage is not available or persistence fails
+ */
 export function setSecret(key: string, value: string): void {
   const secrets = loadSecrets();
   if (value.length === 0) {
@@ -97,14 +144,32 @@ export function setSecret(key: string, value: string): void {
   persistSecrets(secrets);
 }
 
+/**
+ * Check whether a stored secret exists for the given key.
+ *
+ * @param key - The secret key name to check (should be one of the defined secret keys)
+ * @returns `true` if a secret is stored for `key`, `false` otherwise
+ */
 export function hasSecret(key: string): boolean {
   return key in loadSecrets();
 }
 
+/**
+ * Provides the canonical list of secret key names used by the application.
+ *
+ * @returns A readonly array of secret key identifiers.
+ */
 export function listSecretKeys(): readonly string[] {
   return SECRET_KEYS;
 }
 
+/**
+ * Produce a map of settings formatted for use as environment variables.
+ *
+ * Omits the `version` and `AUTO_UPDATE_ENABLED` keys. Includes string settings only when non-empty and converts boolean settings to `"1"` for `true` and `"0"` for `false`.
+ *
+ * @returns A record mapping setting keys to string values suitable for environment consumption.
+ */
 export function loadSettingsEnv(): Record<string, string> {
   const settings = loadSettings();
   const out: Record<string, string> = {};
@@ -116,6 +181,11 @@ export function loadSettingsEnv(): Record<string, string> {
   return out;
 }
 
+/**
+ * Provide a shallow copy of stored secrets for use as environment variables.
+ *
+ * @returns A plain object mapping secret key names to their string values
+ */
 export function loadSecretsEnv(): Record<string, string> {
   return { ...loadSecrets() };
 }

@@ -15,6 +15,13 @@ interface ElectronUpdater {
   };
 }
 
+/**
+ * Initialize and configure the application's auto-updater with runtime guards and event handlers.
+ *
+ * Checks runtime conditions (packaged build and user setting) before attempting to load the updater,
+ * configures the updater's logger and automatic download behavior, registers handlers for update lifecycle
+ * events (available, not available, error, downloaded) and prompts the user to restart when an update is ready.
+ */
 export function initAutoUpdater(): void {
   if (!app.isPackaged) {
     log.info("auto-update disabled in dev");

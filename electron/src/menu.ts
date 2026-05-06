@@ -5,6 +5,14 @@ import { promptForFiles } from "./file-handlers";
 
 const isMac = process.platform === "darwin";
 
+/**
+ * Build and install the application menu, including platform-specific and environment-specific items.
+ *
+ * The menu contains the app menu on macOS, File, Edit, View (with developer tools in non-production), Window, and Help sections.
+ * Menu actions are wired to open the settings window, prompt for files, open the logs directory, and show an About dialog that includes version information.
+ *
+ * @param getMainWindow - A function that returns the main BrowserWindow (or `null`) to use as the parent for dialogs and as the target for file prompts
+ */
 export function buildAppMenu(getMainWindow: () => BrowserWindow | null): void {
   const template: MenuItemConstructorOptions[] = [
     ...(isMac

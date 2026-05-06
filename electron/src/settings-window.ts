@@ -4,6 +4,11 @@ import { getSidecarManager } from "./sidecars/manager";
 
 let settingsWindow: BrowserWindow | null = null;
 
+/**
+ * Opens (or focuses) the single DeepTutor settings window and loads the application's settings page.
+ *
+ * If a settings window already exists and is not destroyed, it is focused. If the frontend port cannot be obtained, no window is opened. The function manages a single BrowserWindow instance and clears its reference when the window is closed.
+ */
 export function openSettingsWindow(): void {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus();

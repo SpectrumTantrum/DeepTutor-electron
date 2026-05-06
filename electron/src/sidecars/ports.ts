@@ -1,5 +1,12 @@
 import net from "node:net";
 
+/**
+ * Acquires an available TCP port bound to localhost.
+ *
+ * @returns The numeric port assigned by the operating system.
+ * @throws If the underlying server emits an error while binding.
+ * @throws Error when `server.address()` is null or not an `AddressInfo`.
+ */
 export async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();

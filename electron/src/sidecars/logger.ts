@@ -5,12 +5,25 @@ import pino, { type Logger } from "pino";
 
 const loggers = new Map<string, Logger>();
 
+/**
+ * Ensures the Electron application's logs directory exists and returns its path.
+ *
+ * Creates the directory if it does not already exist.
+ *
+ * @returns The absolute path to the application's logs directory.
+ */
 function ensureLogDir(): string {
   const dir = app.getPath("logs");
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
+/**
+ * Create or retrieve a named Logger configured to write to a per-name log file with rotation and environment-appropriate targets.
+ *
+ * @param name - Identifier for the logger; used as the logger's name and to derive the log filename (`<name>.log`)
+ * @returns The configured `Logger` instance for the given name
+ */
 export function getLogger(name: string): Logger {
   const cached = loggers.get(name);
   if (cached) return cached;
@@ -51,6 +64,11 @@ export function getLogger(name: string): Logger {
   return logger;
 }
 
+/**
+ * Get the application's logs directory, creating it if it does not exist.
+ *
+ * @returns The absolute path to the logs directory; the directory is created if missing.
+ */
 export function logsDirectory(): string {
   return ensureLogDir();
 }

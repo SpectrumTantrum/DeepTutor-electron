@@ -19,6 +19,13 @@ let sidecarManager: SidecarManager | null = null;
 let bootstrapInFlight = false;
 let splashIpcRegistered = false;
 
+/**
+ * Create and return the application's splash screen BrowserWindow used during startup.
+ *
+ * The window is configured as a small, frameless, non-resizable, always-on-top splash display.
+ *
+ * @returns The created BrowserWindow instance representing the splash screen.
+ */
 function createSplash(): BrowserWindow {
   const splash = new BrowserWindow({
     width: 360,
@@ -43,12 +50,26 @@ function createSplash(): BrowserWindow {
   return splash;
 }
 
+/**
+ * Sends an IPC message to the splash window renderer on the specified channel if the splash window is available.
+ *
+ * @param channel - The splash IPC channel to send; either `splash:status` for progress updates or `splash:error` for error details.
+ * @param payload - The value to forward to the splash renderer as the message payload.
+ */
 function sendSplash(channel: "splash:status" | "splash:error", payload: unknown): void {
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.webContents.send(channel, payload);
   }
 }
 
+/**
+ * Register splash renderer IPC handlers; safe to call multiple times.
+ *
+ * Registers listeners for splash actions:
+ * - `splash:show-logs`: opens the application's logs directory
+ * - `splash:retry`: initiates a bootstrap retry unless a bootstrap is already in progress
+ * - `splash:quit`: exits the application with code 1
+ */
 function registerSplashIpc(): void {
   if (splashIpcRegistered) return;
   splashIpcRegistered = true;
@@ -69,6 +90,12 @@ function registerSplashIpc(): void {
   });
 }
 
+/**
+ * Create the main application BrowserWindow using the previously saved window state and load the provided frontend URL.
+ *
+ * @param frontendUrl - The URL (typically `http://127.0.0.1:<port>` or app file URL) to load into the window
+ * @returns The created BrowserWindow instance
+ */
 function createMainWindow(frontendUrl: string): BrowserWindow {
   const state = restoreWindowState();
   const window = new BrowserWindow({
@@ -106,6 +133,15 @@ function createMainWindow(frontendUrl: string): BrowserWindow {
   return window;
 }
 
+/**
+ * Start and initialize the application's background services, display the splash UI, and create the main window.
+ *
+ * Ensures only one bootstrap runs at a time. Creates and registers the splash UI when needed, instantiates and registers
+ * the SidecarManager, forwards sidecar progress to the splash, and enforces a startup watchdog. On successful startup,
+ * creates the main application window, registers IPC and file handlers, initializes the app menu and auto-updater, drains
+ * any pending files, and closes the splash. On failure, surfaces an error on the splash and attempts a best-effort
+ * shutdown of background services. Always resets the bootstrap-in-progress flag when finished.
+ */
 async function bootstrap(): Promise<void> {
   if (bootstrapInFlight) return;
   bootstrapInFlight = true;
@@ -178,6 +214,11 @@ async function bootstrap(): Promise<void> {
   }
 }
 
+/**
+ * Attempts to stop any running sidecar manager and then restarts the bootstrap flow.
+ *
+ * If a sidecar manager exists, waits for its shutdown and ignores any errors from shutdown; clears the global reference and invokes `bootstrap()` to retry startup.
+ */
 async function retryBootstrap(): Promise<void> {
   log.info("retrying bootstrap");
   try {
