@@ -22,6 +22,7 @@ data/user/
         └── _detached_code_execution/
 """
 
+import os
 from pathlib import Path
 from typing import Literal, cast
 
@@ -81,7 +82,12 @@ class PathService:
             return
 
         self._project_root = Path(__file__).resolve().parent.parent.parent
-        self._user_data_dir = (self._project_root / "data" / "user").resolve()
+        env_dir = os.environ.get("DEEPTUTOR_DATA_DIR")
+        self._user_data_dir = (
+            Path(env_dir).resolve()
+            if env_dir
+            else (self._project_root / "data" / "user").resolve()
+        )
         self._initialized = True
 
     @classmethod
@@ -228,7 +234,11 @@ class PathService:
         return self.get_notebook_dir() / "notebooks_index.json"
 
     def get_memory_dir(self) -> Path:
-        new_dir = self.project_root / "data" / "memory"
+        env_dir = os.environ.get("DEEPTUTOR_DATA_DIR")
+        if env_dir:
+            new_dir = Path(env_dir).resolve().parent / "memory"
+        else:
+            new_dir = self.project_root / "data" / "memory"
         old_dir = self.get_workspace_feature_dir("memory")
         if old_dir.exists():
             new_dir.mkdir(parents=True, exist_ok=True)

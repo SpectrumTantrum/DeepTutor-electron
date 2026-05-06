@@ -1,0 +1,121 @@
+import { app, safeStorage } from "electron";
+import fs from "node:fs";
+import path from "node:path";
+import { z } from "zod";
+
+const SETTINGS_VERSION = 1 as const;
+
+export const SettingsSchema = z
+  .object({
+    version: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
+    LLM_BINDING: z.string().default(""),
+    LLM_MODEL: z.string().default(""),
+    LLM_HOST: z.string().default(""),
+    EMBEDDING_BINDING: z.string().default(""),
+    EMBEDDING_MODEL: z.string().default(""),
+    EMBEDDING_HOST: z.string().default(""),
+    SEARCH_PROVIDER: z.string().default(""),
+    DISABLE_SSL_VERIFY: z.boolean().default(false),
+    AUTO_UPDATE_ENABLED: z.boolean().default(false),
+  })
+  .passthrough();
+
+export type Settings = z.infer<typeof SettingsSchema>;
+
+const SECRET_KEYS = [
+  "LLM_API_KEY",
+  "EMBEDDING_API_KEY",
+  "SILICONFLOW_API_KEY",
+  "DASHSCOPE_API_KEY",
+  "COHERE_API_KEY",
+  "JINA_API_KEY",
+  "GEMINI_API_KEY",
+  "SEARCH_API_KEY",
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+] as const;
+
+export type SecretKey = (typeof SECRET_KEYS)[number];
+
+const SecretsSchema = z.record(z.string(), z.string());
+type Secrets = z.infer<typeof SecretsSchema>;
+
+function settingsPath(): string {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+
+function secretsPath(): string {
+  return path.join(app.getPath("userData"), "secrets.bin");
+}
+
+export function loadSettings(): Settings {
+  const file = settingsPath();
+  if (!fs.existsSync(file)) return SettingsSchema.parse({});
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    return SettingsSchema.parse(raw);
+  } catch {
+    return SettingsSchema.parse({});
+  }
+}
+
+export function saveSettings(next: Partial<Settings>): Settings {
+  const current = loadSettings();
+  const merged = SettingsSchema.parse({ ...current, ...next, version: SETTINGS_VERSION });
+  fs.writeFileSync(settingsPath(), JSON.stringify(merged, null, 2), "utf8");
+  return merged;
+}
+
+function loadSecrets(): Secrets {
+  const file = secretsPath();
+  if (!fs.existsSync(file)) return {};
+  if (!safeStorage.isEncryptionAvailable()) return {};
+  try {
+    const ciphertext = fs.readFileSync(file);
+    const plaintext = safeStorage.decryptString(ciphertext);
+    return SecretsSchema.parse(JSON.parse(plaintext));
+  } catch {
+    return {};
+  }
+}
+
+function persistSecrets(secrets: Secrets): void {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("safeStorage encryption is not available on this platform");
+  }
+  const ciphertext = safeStorage.encryptString(JSON.stringify(secrets));
+  fs.writeFileSync(secretsPath(), ciphertext);
+}
+
+export function setSecret(key: string, value: string): void {
+  const secrets = loadSecrets();
+  if (value.length === 0) {
+    delete secrets[key];
+  } else {
+    secrets[key] = value;
+  }
+  persistSecrets(secrets);
+}
+
+export function hasSecret(key: string): boolean {
+  return key in loadSecrets();
+}
+
+export function listSecretKeys(): readonly string[] {
+  return SECRET_KEYS;
+}
+
+export function loadSettingsEnv(): Record<string, string> {
+  const settings = loadSettings();
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(settings)) {
+    if (k === "version" || k === "AUTO_UPDATE_ENABLED") continue;
+    if (typeof v === "string" && v.length > 0) out[k] = v;
+    if (typeof v === "boolean") out[k] = v ? "1" : "0";
+  }
+  return out;
+}
+
+export function loadSecretsEnv(): Record<string, string> {
+  return { ...loadSecrets() };
+}

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DeepTutor</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d12;
+        color: #e6e8ec;
+        font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .wrap { text-align: center; max-width: 320px; padding: 0 24px; }
+      h1 { margin: 0 0 12px; font-size: 24px; font-weight: 600; }
+      p#status { margin: 0; font-size: 13px; opacity: 0.65; min-height: 18px; }
+      .dots { display: inline-block; width: 28px; text-align: left; }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.2; }
+        50%      { opacity: 1.0; }
+      }
+      .dots span { display: inline-block; animation: pulse 1.4s infinite; }
+      .dots span:nth-child(2) { animation-delay: 0.2s; }
+      .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+      .error-state h1 { color: #f87171; }
+      .error-state #status { font-size: 12px; opacity: 0.85; white-space: pre-wrap; text-align: left; }
+      .actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      button {
+        padding: 6px 14px;
+        font-size: 12px;
+        background: #1a1f2a;
+        color: #e6e8ec;
+        border: 1px solid #2a3140;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      button:hover { background: #232936; }
+      button.primary { background: #3b82f6; border-color: #3b82f6; }
+      button.primary:hover { background: #2563eb; }
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="wrap">
+      <h1 id="title">DeepTutor</h1>
+      <p id="status">Starting<span class="dots" id="dots"><span>.</span><span>.</span><span>.</span></span></p>
+      <div class="actions hidden" id="actions">
+        <button class="primary" id="btn-retry">Retry</button>
+        <button id="btn-logs">Show Logs</button>
+        <button id="btn-quit">Quit</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var wrap = document.getElementById("wrap");
+        var status = document.getElementById("status");
+        var dots = document.getElementById("dots");
+        var actions = document.getElementById("actions");
+        var btnRetry = document.getElementById("btn-retry");
+        var btnLogs = document.getElementById("btn-logs");
+        var btnQuit = document.getElementById("btn-quit");
+
+        function setStage(text) {
+          wrap.classList.remove("error-state");
+          actions.classList.add("hidden");
+          dots.classList.remove("hidden");
+          status.textContent = "";
+          status.appendChild(document.createTextNode(text));
+          status.appendChild(dots);
+        }
+
+        function setError(message, detail) {
+          wrap.classList.add("error-state");
+          dots.classList.add("hidden");
+          actions.classList.remove("hidden");
+          status.textContent = (message || "DeepTutor failed to start.") +
+            (detail ? "\n\n" + detail : "");
+        }
+
+        var bridge = window.deeptutorSplash;
+        if (bridge) {
+          bridge.onStatus(setStage);
+          bridge.onError(function (info) { setError(info.message, info.detail); });
+        }
+
+        btnRetry.addEventListener("click", function () {
+          setStage("Restarting");
+          if (bridge) bridge.retry();
+        });
+        btnLogs.addEventListener("click", function () {
+          if (bridge) bridge.showLogs();
+        });
+        btnQuit.addEventListener("click", function () {
+          if (bridge) bridge.quit();
+        });
+
+        if (!bridge) setStage("Starting");
+      })();
+    </script>
+  </body>
+</html>
