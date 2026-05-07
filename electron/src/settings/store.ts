@@ -135,6 +135,9 @@ function persistSecrets(secrets: Secrets): void {
  * @throws Error if encrypted secure storage is not available or persistence fails
  */
 export function setSecret(key: string, value: string): void {
+  if (!(SECRET_KEYS as readonly string[]).includes(key)) {
+    throw new Error(`Unknown secret key: ${key}`);
+  }
   const secrets = loadSecrets();
   if (value.length === 0) {
     delete secrets[key];
@@ -166,9 +169,14 @@ export function listSecretKeys(): readonly string[] {
 /**
  * Produce a map of settings formatted for use as environment variables.
  *
- * Omits the `version` and `AUTO_UPDATE_ENABLED` keys. Includes string settings only when non-empty and converts boolean settings to `"1"` for `true` and `"0"` for `false`.
+ * Omits the `version` and `AUTO_UPDATE_ENABLED` keys. Includes string
+ * settings only when non-empty. Booleans are encoded by PRESENCE: `true`
+ * emits `"1"`, `false` omits the key entirely. The Python sidecar treats
+ * `if os.environ.get("DISABLE_SSL_VERIFY"):` as truthy for ANY non-empty
+ * string (including `"0"`), so we cannot use `"0"` for false.
  *
- * @returns A record mapping setting keys to string values suitable for environment consumption.
+ * @returns A record mapping setting keys to string values suitable for
+ * environment consumption.
  */
 export function loadSettingsEnv(): Record<string, string> {
   const settings = loadSettings();
@@ -176,7 +184,7 @@ export function loadSettingsEnv(): Record<string, string> {
   for (const [k, v] of Object.entries(settings)) {
     if (k === "version" || k === "AUTO_UPDATE_ENABLED") continue;
     if (typeof v === "string" && v.length > 0) out[k] = v;
-    if (typeof v === "boolean") out[k] = v ? "1" : "0";
+    if (typeof v === "boolean" && v) out[k] = "1";
   }
   return out;
 }

@@ -19,7 +19,29 @@ DIST="${ROOT}/dist/py-sidecar"
 BUILD_ARM64="${ROOT}/build/py-arm64"
 BUILD_X64="${ROOT}/build/py-x64"
 
-# build_arch builds the PyInstaller bundle for a given architecture into the specified output directory using the provided virtual environment path.
+# DeepTutor's pyproject.toml requires Python >=3.11. macOS ships 3.9 at
+# /usr/bin/python3, so we cannot use that. Resolve an explicit 3.11 binary
+# (overridable via PYTHON_BIN) and fail fast with an install hint if it's
+# not available on the build host.
+PYTHON_BIN="${PYTHON_BIN:-python3.11}"
+if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
+  cat >&2 <<EOF
+ERROR: ${PYTHON_BIN} not found on PATH.
+
+DeepTutor requires Python >= 3.11. Install it via:
+  brew install python@3.11
+or download the universal2 installer from python.org. Then either ensure
+python3.11 is on PATH, or re-run with:
+  PYTHON_BIN=/path/to/python3.11 bash scripts/build-py-sidecar.sh
+EOF
+  exit 1
+fi
+
+PYTHON_BIN_ABS="$(command -v "${PYTHON_BIN}")"
+echo ">>> Using Python: ${PYTHON_BIN_ABS} ($(${PYTHON_BIN_ABS} --version))"
+
+# build_arch builds the PyInstaller bundle for a given architecture into
+# the specified output directory using the provided virtual environment path.
 build_arch() {
   local arch="$1"
   local venv_dir="$2"
@@ -30,7 +52,7 @@ build_arch() {
   mkdir -p "${out_dir}"
 
   if [[ "${arch}" == "x86_64" ]]; then
-    arch -x86_64 /usr/bin/python3 -m venv "${venv_dir}"
+    arch -x86_64 "${PYTHON_BIN_ABS}" -m venv "${venv_dir}"
     # shellcheck disable=SC1091
     source "${venv_dir}/bin/activate"
     arch -x86_64 pip install --upgrade pip
@@ -42,7 +64,7 @@ build_arch() {
       --clean \
       "${ROOT}/pyinstaller/deeptutor.spec"
   else
-    python3 -m venv "${venv_dir}"
+    "${PYTHON_BIN_ABS}" -m venv "${venv_dir}"
     # shellcheck disable=SC1091
     source "${venv_dir}/bin/activate"
     pip install --upgrade pip
@@ -74,10 +96,18 @@ while IFS= read -r -d '' file; do
   rel="${file#${ROOT}/dist/py-arm64/py-sidecar/}"
   x64_counterpart="${ROOT}/dist/py-x64/py-sidecar/${rel}"
   if [[ -f "${x64_counterpart}" ]] && file "${file}" | grep -q "Mach-O"; then
-    lipo -create "${file}" "${x64_counterpart}" -output "${DIST}/${rel}" || true
+    lipo -create "${file}" "${x64_counterpart}" -output "${DIST}/${rel}"
   fi
 done < <(find "${ROOT}/dist/py-arm64/py-sidecar" -type f -print0)
+
+echo ">>> Verifying universal2 layout..."
+archs="$(lipo -archs "${DIST}/deeptutor-server" 2>/dev/null || true)"
+if ! echo "${archs}" | grep -q "arm64" || ! echo "${archs}" | grep -q "x86_64"; then
+  echo "ERROR: ${DIST}/deeptutor-server is not universal2. lipo reported: '${archs}'" >&2
+  exit 1
+fi
 
 echo ">>> py-sidecar ready at ${DIST}"
 ls -lh "${DIST}/deeptutor-server"
 file "${DIST}/deeptutor-server"
+echo ">>> archs: ${archs}"

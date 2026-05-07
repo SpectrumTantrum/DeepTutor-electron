@@ -13,7 +13,10 @@ export interface ElectronBridge {
   saveSettings: (partial: Record<string, unknown>) => Promise<Record<string, unknown>>
   setSecret: (key: string, value: string) => Promise<{ ok: true }>
   hasSecret: (key: string) => Promise<boolean>
-  restartSidecar: () => Promise<{ ok: boolean; hint?: string }>
+  // Optional: only the settings-window preload exposes this. The main
+  // chat window's narrower preload omits it so the chat surface cannot
+  // tear down the backend.
+  restartSidecar?: () => Promise<{ ok: boolean; hint?: string }>
   uploadDroppedPaths: (
     paths: string[]
   ) => Promise<{ path: string; ok: boolean; response?: unknown; error?: string }[]>

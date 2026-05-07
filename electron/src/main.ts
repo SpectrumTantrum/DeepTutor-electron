@@ -109,7 +109,9 @@ function createMainWindow(frontendUrl: string): BrowserWindow {
     backgroundColor: "#0b0d12",
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      // Narrow preload — no `restartSidecar`. The settings window uses the
+      // wider `preload.js`.
+      preload: path.join(__dirname, "main-preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

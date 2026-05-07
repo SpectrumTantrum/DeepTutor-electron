@@ -24,10 +24,13 @@ fi
 echo "=== Phase 1: Python sidecar (universal2) ==="
 bash "${ROOT}/scripts/build-py-sidecar.sh"
 
-echo "=== Phase 2: Web sidecar (Next.js standalone) ==="
+echo "=== Phase 2: Smoke-test the Python sidecar ==="
+bash "${ROOT}/scripts/smoke-py-sidecar.sh"
+
+echo "=== Phase 3: Web sidecar (Next.js standalone) ==="
 bash "${ROOT}/scripts/build-web-sidecar.sh"
 
-echo "=== Phase 3: Electron compile + package ==="
+echo "=== Phase 4: Electron compile + package ==="
 cd "${ROOT}/electron"
 
 if [[ ! -d node_modules ]]; then

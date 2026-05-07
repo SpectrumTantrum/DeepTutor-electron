@@ -2,8 +2,16 @@ import { app, dialog } from "electron";
 import { type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { getLogger } from "./logger";
-import { spawnPythonSidecar, waitForPythonReady } from "./python";
-import { spawnNodeSidecar, waitForNodeReady } from "./node";
+import {
+  spawnPythonSidecar,
+  waitForPythonReady,
+  type PythonSpawnResult,
+} from "./python";
+import {
+  spawnNodeSidecar,
+  waitForNodeReady,
+  type NodeSpawnResult,
+} from "./node";
 
 const log = getLogger("main");
 
@@ -47,7 +55,7 @@ export class SidecarManager extends EventEmitter {
     this.python.child = py.child;
     this.python.port = py.port;
     this.dataDir = py.dataDir;
-    this.attachExitHandler("python", this.python, () => this.startPython());
+    this.attachExitHandler("python", this.python, () => this.restartPython());
 
     await waitForPythonReady(py.port);
     this.emit("progress", "Backend ready");
@@ -56,7 +64,7 @@ export class SidecarManager extends EventEmitter {
     const node = await this.startNode(py.port);
     this.node.child = node.child;
     this.node.port = node.port;
-    this.attachExitHandler("node", this.node, () => this.startNode(this.python.port));
+    this.attachExitHandler("node", this.node, () => this.restartNode());
 
     await waitForNodeReady(node.port);
     this.emit("progress", "Loading interface");
@@ -70,7 +78,7 @@ export class SidecarManager extends EventEmitter {
     return urls;
   }
 
-  private async startPython() {
+  private async startPython(): Promise<PythonSpawnResult> {
     const env: Record<string, string> = {
       ...this.options.settingsEnv,
       ...this.options.secretsEnv,
@@ -78,14 +86,33 @@ export class SidecarManager extends EventEmitter {
     return spawnPythonSidecar(env);
   }
 
-  private async startNode(backendPort: number) {
+  private async startNode(backendPort: number): Promise<NodeSpawnResult> {
     return spawnNodeSidecar(backendPort, this.options.appVersion);
+  }
+
+  private async restartPython(): Promise<{ child: ChildProcess; port: number }> {
+    const result = await this.startPython();
+    this.python.child = result.child;
+    this.python.port = result.port;
+    this.dataDir = result.dataDir;
+    this.attachExitHandler("python", this.python, () => this.restartPython());
+    await waitForPythonReady(result.port);
+    return { child: result.child, port: result.port };
+  }
+
+  private async restartNode(): Promise<{ child: ChildProcess; port: number }> {
+    const result = await this.startNode(this.python.port);
+    this.node.child = result.child;
+    this.node.port = result.port;
+    this.attachExitHandler("node", this.node, () => this.restartNode());
+    await waitForNodeReady(result.port);
+    return { child: result.child, port: result.port };
   }
 
   private attachExitHandler(
     label: "python" | "node",
     state: SidecarState,
-    restart: () => Promise<unknown>,
+    restart: () => Promise<{ child: ChildProcess; port: number }>,
   ): void {
     const child = state.child;
     if (!child) return;
@@ -93,6 +120,9 @@ export class SidecarManager extends EventEmitter {
     child.on("exit", (code, signal) => {
       log.warn({ label, code, signal }, "sidecar exited");
       if (this.isShuttingDown) return;
+      // Stale exit handler — a successful restart already replaced state.child
+      // and re-attached a new handler. Ignore the old child's late exit event.
+      if (state.child !== child) return;
 
       const now = Date.now();
       state.restartTimestamps = state.restartTimestamps.filter(
@@ -112,7 +142,7 @@ export class SidecarManager extends EventEmitter {
       log.info({ label, attempt, backoffMs }, "restarting sidecar after backoff");
       setTimeout(() => {
         restart()
-          .then(() => log.info({ label }, "sidecar restarted"))
+          .then(({ port }) => log.info({ label, port }, "sidecar restarted"))
           .catch((err) => {
             log.error({ label, err: String(err) }, "sidecar restart failed");
             this.emit("crashed", { label });
@@ -173,7 +203,9 @@ export class SidecarManager extends EventEmitter {
 
     const stopChild = (label: string, child: ChildProcess | null): Promise<void> =>
       new Promise((resolve) => {
-        if (!child || child.exitCode !== null) return resolve();
+        if (!child || child.exitCode !== null || child.signalCode !== null) {
+          return resolve();
+        }
         const timer = setTimeout(() => {
           log.warn({ label }, "SIGKILL after grace period");
           try {

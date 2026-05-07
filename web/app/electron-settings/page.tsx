@@ -92,9 +92,28 @@ export default function ElectronSettingsPage() {
 
   const onRestart = async () => {
     const bridge = getElectronBridge()
-    if (!bridge) return
+    if (!bridge || !bridge.restartSidecar) return
     await bridge.restartSidecar()
     setStatus('Sidecar stopped. Quit and relaunch DeepTutor to apply.')
+  }
+
+  const onClearSecret = async (key: string) => {
+    const bridge = getElectronBridge()
+    if (!bridge) return
+    setStatus(`Clearing ${key}…`)
+    try {
+      await bridge.setSecret(key, '')
+      const refreshed = await bridge.getSettings()
+      setSecretStatus(refreshed.secretStatus)
+      setSecretInputs(prev => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+      setStatus(`${key} cleared.`)
+    } catch (err) {
+      setStatus(`Clear failed: ${String(err)}`)
+    }
   }
 
   return (
@@ -171,13 +190,36 @@ export default function ElectronSettingsPage() {
               {key}
               {secretStatus[key] ? ' (set)' : ' (not set)'}
             </label>
-            <input
-              type="password"
-              value={secretInputs[key] ?? ''}
-              placeholder={secretStatus[key] ? '•••••••• (hidden)' : ''}
-              onChange={e => setSecretInputs(prev => ({ ...prev, [key]: e.target.value }))}
-              style={inputStyle}
-            />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="password"
+                value={secretInputs[key] ?? ''}
+                placeholder={secretStatus[key] ? '•••••••• (hidden)' : ''}
+                onChange={e =>
+                  setSecretInputs(prev => ({ ...prev, [key]: e.target.value }))
+                }
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={() => onClearSecret(key)}
+                disabled={!secretStatus[key]}
+                title={
+                  secretStatus[key]
+                    ? `Remove the stored ${key} from Keychain`
+                    : `${key} is not set`
+                }
+                style={{
+                  ...secondaryButtonStyle,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  opacity: secretStatus[key] ? 1 : 0.4,
+                  cursor: secretStatus[key] ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Clear
+              </button>
+            </div>
           </div>
         ))}
       </Section>
