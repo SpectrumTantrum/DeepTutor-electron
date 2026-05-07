@@ -1,0 +1,84 @@
+{
+  "name": "deeptutor-electron",
+  "version": "0.0.1",
+  "private": true,
+  "description": "DeepTutor desktop app (Electron shell around the Python backend + Next.js frontend).",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -p . --watch",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && DEEPTUTOR_DEV_FRONTEND_URL=http://localhost:3782 electron .",
+    "package": "npm run build && electron-builder --mac --universal",
+    "package:unsigned": "npm run build && electron-builder --mac --universal -c.mac.identity=null"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "electron-window-state": "^5.0.3",
+    "pino": "^9.5.0",
+    "pino-roll": "^3.0.0",
+    "zod": "^3.23.8"
+  },
+  "build": {
+    "appId": "edu.hku.deeptutor",
+    "productName": "DeepTutor",
+    "asar": true,
+    "directories": {
+      "output": "build",
+      "buildResources": "resources"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/py-sidecar/",
+        "to": "py-sidecar",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../web/.next/standalone/",
+        "to": "web",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../web/.next/static/",
+        "to": "web/.next/static",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../web/public/",
+        "to": "web/public",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.inherit.plist",
+      "notarize": true,
+      "fileAssociations": [
+        {
+          "ext": "pdf",
+          "name": "PDF Document",
+          "role": "Viewer"
+        }
+      ]
+    }
+  }
+}
